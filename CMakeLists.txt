@@ -7,19 +7,19 @@ set(ImguiPath deps/imgui/)
 set(ImplotPath deps/implot/)
 
 set(ImguiSources 
-    # ${ImguiPath}imgui_demo.cpp
-    # ${ImguiPath}imgui_draw.cpp
-    # ${ImguiPath}imgui_tables.cpp
-    # ${ImguiPath}imgui_widgets.cpp
-    # ${ImguiPath}imgui.cpp
-    # ${ImguiPath}backends/imgui_impl_opengl3.cpp
-    # ${ImguiPath}backends/imgui_impl_glfw.cpp
+    ${ImguiPath}imgui_demo.cpp
+    ${ImguiPath}imgui_draw.cpp
+    ${ImguiPath}imgui_tables.cpp
+    ${ImguiPath}imgui_widgets.cpp
+    ${ImguiPath}imgui.cpp
+    ${ImguiPath}backends/imgui_impl_opengl3.cpp
+    ${ImguiPath}backends/imgui_impl_glfw.cpp
 )
 
 set(ImplotSources 
-    # ${ImplotPath}implot_demo.cpp
-    # ${ImplotPath}implot_items.cpp
-    # ${ImplotPath}implot.cpp
+    ${ImplotPath}implot_demo.cpp
+    ${ImplotPath}implot_items.cpp
+    ${ImplotPath}implot.cpp
 )
 
 add_executable(lab src/main.cpp ${ImguiSources} ${ImplotSources})
@@ -29,10 +29,10 @@ target_include_directories(lab PUBLIC deps/implot)
 target_include_directories(lab PUBLIC deps/imgui)
 target_include_directories(lab PUBLIC deps/imgui/backends)
 
-# add_subdirectory(deps/glfw)
+add_subdirectory(deps/glfw)
 
 target_link_libraries(lab PUBLIC 
                                 stdc++exp
-                                # glfw
+                                glfw
                                 opengl32
 )
