@@ -7,11 +7,11 @@ extern const int SAMPLE_RATE;
 namespace DSP
 {
     SignalData::SignalData(double A, double freq, double phase, double d) :
-        amplitude(std::make_unique<Constant>(A)),
-        freq(std::make_unique<Constant>(freq)),
-        time(std::make_unique<Constant>(SAMPLE_RATE)),
-        phase(std::make_unique<Constant>(phase)),
-        d(std::make_unique<Constant>(d))
+        amplitude(std::make_unique<Signals::Constant>(A)),
+        freq(std::make_unique<Signals::Constant>(freq)),
+        time(std::make_unique<Signals::Constant>(SAMPLE_RATE)),
+        phase(std::make_unique<Signals::Constant>(phase)),
+        d(std::make_unique<Signals::Constant>(d))
     {
     }
 

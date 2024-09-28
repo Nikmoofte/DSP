@@ -20,7 +20,7 @@ extern const int SAMPLE_RATE;
 
 #define CloneImplimentation(className) virtual className* cloneImpl() const override { return new className(*this); }
 
-namespace DSP
+namespace DSP::Signals
 {
     class Sin : public SignalBase
     {
@@ -180,7 +180,7 @@ namespace DSP
         {
             double result = 0.0;
             auto prev = std::move(left->getData().phase);
-            auto tempPhase = std::make_unique<DSP::Constant>(prev->get(x));
+            auto tempPhase = std::make_unique<Constant>(prev->get(x));
             double sum = 0.0;
 
             sum = accumulatedIntegrate(x);

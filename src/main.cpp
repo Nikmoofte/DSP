@@ -23,7 +23,7 @@ static void glfw_error_callback(int error, const char* description)
 
 extern const int SAMPLE_RATE = 44100;
 constexpr static int FREQUENCY = 440;
-constexpr static int DURATION = 10;
+constexpr static int DURATION = 4;
 static constexpr int total_size = SAMPLE_RATE * DURATION;
 
 // void editSignal(DSP::SignalBase& sigData)
@@ -147,14 +147,17 @@ int main(int, char**)
     std::vector<float> plotPoints(plotDataSize);
     std::vector<float> modulatoplotPoints(plotDataSize);
     std::vector<float> xes(plotDataSize);
-    auto modulatorPtr = std::make_unique<DSP::SumParam>(
-        std::make_unique<DSP::Sawtooth>(0.2, 120.0),
-        std::make_unique<DSP::Pulse>(0.2, 220.0)
+    auto modulatorPtr = std::make_unique<DSP::Signals::SumParam>(
+        std::make_unique<DSP::Signals::Sawtooth>(0.2, 120.0),
+        std::make_unique<DSP::Signals::Pulse>(0.2, 220.0)
     );
     auto& modulator = *modulatorPtr;
-    auto modulatedPtr = std::make_unique<DSP::Sin>(0.2, 440.0);
+    auto modulatedPtr = std::make_unique<DSP::Signals::Sin>(0.01, 440.0);
     auto& modulated = *modulatedPtr;
-    std::unique_ptr<DSP::SignalBase> signal = std::move(modulatedPtr);
+    std::unique_ptr<DSP::SignalBase> signal = std::make_unique<DSP::Signals::freqModulator>(
+        std::move(modulatedPtr),
+        std::move(modulatorPtr)
+    );
 
     auto& data = signal->getData();  
     // data.amplitude = std::make_unique<DSP::MulParam>(
@@ -223,17 +226,17 @@ int main(int, char**)
             }
 
             // editSignal(*signal);
-            static auto& modulatedPhaseObj = dynamic_cast<DSP::Constant&>(*modulated.getData().phase);
+            static auto& modulatedPhaseObj = dynamic_cast<DSP::Signals::Constant&>(*modulated.getData().phase);
             static auto& modulatorPhaseObj = modulator;
             offset = modulatedPhaseObj.get(0);
             if(isAnimated)
-                offset += 0.001;
+                offset += 0.01;
             ImGui::Checkbox("Animate", &isAnimated);
             ImGui::SameLine();
             ImGui::InputDouble("Offset", &offset, 0.1f, 1.0);
             modulatedPhaseObj.set(offset);
-            dynamic_cast<DSP::Constant&>(*modulatorPhaseObj.getLeft().getData().phase).set(offset);
-            dynamic_cast<DSP::Constant&>(*modulatorPhaseObj.getRight().getData().phase).set(offset);
+            dynamic_cast<DSP::Signals::Constant&>(*modulatorPhaseObj.getLeft().getData().phase).set(offset);
+            dynamic_cast<DSP::Signals::Constant&>(*modulatorPhaseObj.getRight().getData().phase).set(offset);
 
             if(ImGui::Button("Play"))
             {
