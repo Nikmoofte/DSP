@@ -10,7 +10,7 @@
 #include "SignalBase.hpp"
 
 constexpr static double pi2 = 2 * M_PI;
-extern const int SAMPLE_RATE;
+extern const uint32_t SAMPLE_RATE;
 
 #define ConstructorsInit(className) (className)(double A = 0.5, double freq = 440.0, double phase = 0.0, double d = 0.5) : SignalBase(A, freq, phase, d){}\
                                     (className)(const SignalBase& other) : SignalBase(other){}\
@@ -20,15 +20,19 @@ extern const int SAMPLE_RATE;
 
 #define CloneImplimentation(className) virtual className* cloneImpl() const override { return new className(*this); }
 
-namespace DSP::Signals
+namespace DSP
 {
+    class ConstantNode;
+namespace Signals
+{
+
     class Sin : public SignalBase
     {
     public:
         ConstructorsInit(Sin);
         double get(double x) override
         {
-            double res = data->amplitude->get(x) * ::sin(pi2 * data->freq->get(x) * x / data->time->get(x) + data->phase->get(x)); 
+            double res = (*data->amplitude)->get(x) * ::sin(pi2 * (*data->freq)->get(x) * x / (*data->time)->get(x) + (*data->phase)->get(x)); 
             return res;
         }
     private:
@@ -41,7 +45,7 @@ namespace DSP::Signals
         ConstructorsInit(Cos);
         double get(double x) override
         {
-            double res = data->amplitude->get(x) * ::cos(pi2 * data->freq->get(x) * x / data->time->get(x) + data->phase->get(x)); 
+            double res = (*data->amplitude)->get(x) * ::cos(pi2 * (*data->freq)->get(x) * x / (*data->time)->get(x) + (*data->phase)->get(x)); 
             return res;
         }
     private:
@@ -52,9 +56,9 @@ namespace DSP::Signals
     {
     public:
         ConstructorsInit(Triangle);
-         double get(double x) override
+        double get(double x) override
         {
-            double res = data->amplitude->get(x) * M_2_PI *(std::abs(fmod(pi2 * data->freq->get(x) * x / data->time->get(x) + data->phase->get(x) + 3 * M_PI_2, pi2) - M_PI) - M_PI_2);
+            double res = (*data->amplitude)->get(x) * M_2_PI *(std::abs(fmod(pi2 * (*data->freq)->get(x) * x / (*data->time)->get(x) + (*data->phase)->get(x) + 3 * M_PI_2, pi2) - M_PI) - M_PI_2);
             return res;
         }
     private:
@@ -67,7 +71,7 @@ namespace DSP::Signals
         ConstructorsInit(Sawtooth)
         double get(double x) override
         {
-            double res = data->amplitude->get(x) * M_1_PI * (fmod(pi2 * data->freq->get(x) * x / data->time->get(x) + data->phase->get(x) + M_PI, pi2) - M_PI);
+            double res = (*data->amplitude)->get(x) * M_1_PI * (fmod(pi2 * (*data->freq)->get(x) * x / (*data->time)->get(x) + (*data->phase)->get(x) + M_PI, pi2) - M_PI);
             return res;
         }
     private:
@@ -80,8 +84,8 @@ namespace DSP::Signals
         ConstructorsInit(Pulse)
          double get(double x) override
         {
-            double res = std::fmod(pi2 * data->freq->get(x) * x / data->time->get(x) + data->phase->get(x), pi2) / pi2;
-            return res <= data->d->get(x) ? data->amplitude->get(x) : -data->amplitude->get(x);
+            double res = std::fmod(pi2 * (*data->freq)->get(x) * x / (*data->time)->get(x) + (*data->phase)->get(x), pi2) / pi2;
+            return res <= (*data->d)->get(x) ? (*data->amplitude)->get(x) : -(*data->amplitude)->get(x);
         }
     private:
         CloneImplimentation(Pulse);
@@ -93,9 +97,9 @@ namespace DSP::Signals
         ConstructorsInit(Noise)
          double get(double x) override
         {
-            std::mt19937 gen(x + data->phase->get(x)); 
-            static std::uniform_real_distribution<> dis(0.0f, 1.0f);
-            double res = data->amplitude->get(x) * dis(gen);
+            std::mt19937 gen(x + (*data->phase)->get(x)); 
+            static std::uniform_real_distribution<> dis(-1.0f, 1.0f);
+            double res = (*data->amplitude)->get(x) * dis(gen);
             return res;
         }
     private:
@@ -104,6 +108,7 @@ namespace DSP::Signals
 
     class Constant : public SignalBase
     {
+        friend class DSP::ConstantNode;
     public:
         Constant() : SignalBase(nullptr), value(0.0){}
         Constant(const Constant& other) : SignalBase(nullptr),  value(other.value){}
@@ -124,12 +129,12 @@ namespace DSP::Signals
         double value;
     };
 
-    class ComplParam : public SignalBase
+    class ComplexSignal : public SignalBase
     {
     public:
-        ComplParam(
-            std::unique_ptr<SignalBase>&& left, 
-            std::unique_ptr<SignalBase>&& right,
+        ComplexSignal(
+            std::shared_ptr<std::shared_ptr<SignalBase>>&& left, 
+            std::shared_ptr<std::shared_ptr<SignalBase>>&& right,
             const std::function<double(double, double)>& func 
         ) : 
             SignalBase(nullptr), 
@@ -137,65 +142,101 @@ namespace DSP::Signals
             right(std::move(right)),
             _func(func)
         {}
-        ComplParam(const ComplParam& other) :
+        ComplexSignal(
+            std::shared_ptr<std::shared_ptr<SignalBase>>& left, 
+            std::shared_ptr<std::shared_ptr<SignalBase>>& right,
+            const std::function<double(double, double)>& func 
+        ) : 
             SignalBase(nullptr), 
-            left(other.left->clone()),  
-            right(other.right->clone()),
+            left(left),
+            right(right),
+            _func(func)
+        {}
+        ComplexSignal(const ComplexSignal& other) :
+            SignalBase(nullptr), 
+            left(other.left),  
+            right(other.right),
             _func(other._func)    
         {}
-        
+        bool isValid() const override
+        {
+            return left && (*left) && (*left)->isValid() && right && (*right) && (*right)->isValid();
+        }
+        bool isComplex() const override
+        {
+            return true;
+        }
         virtual double get(double x) override
         {
-            return _func(left->get(x), right->get(x));
+            return _func((*left)->get(x), (*right)->get(x));
         }
-        SignalBase& getLeft()
+        virtual SignalData& getData() override
         {
-            return *left;
+            return (*left)->getData();
         }
-        SignalBase& getRight()
+        std::shared_ptr<std::shared_ptr<SignalBase>>& getLeft()
         {
-            return *right;
+            return left;
         }
-        virtual ~ComplParam() override {}
+        std::shared_ptr<std::shared_ptr<SignalBase>>& getRight()
+        {
+            return right;
+        }
+        void SetLeft(std::shared_ptr<std::shared_ptr<SignalBase>>& newLeft)
+        {
+            left = newLeft;
+        }
+        void SetRight(std::shared_ptr<std::shared_ptr<SignalBase>>& newRight)
+        {
+            right = newRight;
+        }
+        virtual ~ComplexSignal() override {}
     protected:
-        CloneImplimentation(ComplParam);
-        std::unique_ptr<SignalBase> left;
-        std::unique_ptr<SignalBase> right;
+        CloneImplimentation(ComplexSignal);
+        std::shared_ptr<std::shared_ptr<SignalBase>> left;
+        std::shared_ptr<std::shared_ptr<SignalBase>> right;
         std::function<double(double, double)> _func;
     };
 
-    class freqModulator : public ComplParam
+    class freqModulator : public ComplexSignal
     {
     public:
         freqModulator(
-            std::unique_ptr<SignalBase>&& modulated,  
-            std::unique_ptr<SignalBase>&& modulator    
-        ) : ComplParam(
+            std::shared_ptr<std::shared_ptr<SignalBase>>&& modulated,  
+            std::shared_ptr<std::shared_ptr<SignalBase>>&& modulator    
+        ) : ComplexSignal(
             std::move(modulated), 
             std::move(modulator), 
+            [](double, double) { return 0;})
+        {}
+        freqModulator(
+            std::shared_ptr<std::shared_ptr<SignalBase>>& modulated,  
+            std::shared_ptr<std::shared_ptr<SignalBase>>& modulator    
+        ) : ComplexSignal(
+            modulated, 
+            modulator, 
             [](double, double) { return 0;})
         {}
 
         double get(double x) override
         {
             double result = 0.0;
-            auto prev = std::move(left->getData().phase);
-            auto tempPhase = std::make_unique<Constant>(prev->get(x));
             double sum = 0.0;
 
             sum = accumulatedIntegrate(x);
-
-            tempPhase->set(sum + prev->get(x));
-            left->getData().phase = std::move(tempPhase);
-            result = left->get(x);
-            left->getData().phase = std::move(prev);
+            auto tempPrevFreq = (*left)->getData().freq;
+            auto temp = std::make_shared<Signals::Constant>(sum);
+            auto tempPtr = std::make_shared<std::shared_ptr<Signals::SignalBase>>(temp);
+            (*left)->getData().freq = tempPtr;
+            result = (*left)->get(SAMPLE_RATE);
+            (*left)->getData().freq = tempPrevFreq;
+            
             return result;
         }
     private:
         CloneImplimentation(freqModulator);
         double accumulatedIntegrate(double x)
         {
-            static const int steps = 1;
             static double prev = 0.0;
             
             if(x < 1)
@@ -204,31 +245,45 @@ namespace DSP::Signals
                 return prev;
             }
 
-            prev += integrate(x - 1, x, steps); 
+            prev += (*((*left)->getData().freq))->get(x) * (1 + (*right)->get(x)) / SAMPLE_RATE; 
             return prev;
         }
         double integrate(double a, double b, int step)
         {
             double h = (b - a) / step; 
-            double sum = right->get(a) + right->get(b);  
+            double sum = sin(2 * M_PI * a / SAMPLE_RATE) + sin(2 * M_PI * b / SAMPLE_RATE);  
             
             for (int i = 1; i < step; i++) {
                 double x_i = a + i * h;
-                sum += 2 * right->get(x_i);
+                sum += 2 * sin(2 * M_PI * x_i / SAMPLE_RATE);
             }
 
             return (h / 2) * sum; 
         }
     };
 
-    class SumParam : public ComplParam
+    class SumParam : public ComplexSignal
     {
     public:
         SumParam(
-            std::unique_ptr<SignalBase>&& left, 
-            std::unique_ptr<SignalBase>&& right    
+            std::shared_ptr<std::shared_ptr<SignalBase>>&& left, 
+            std::shared_ptr<std::shared_ptr<SignalBase>>&& right    
         ) : 
-            ComplParam(std::move(left), std::move(right), [](double l, double r){ return l + r; })
+            ComplexSignal(
+                std::move(left), 
+                std::move(right), 
+                [](double l, double r){ return l + r; }
+            )
+        {}
+        SumParam(
+            std::shared_ptr<std::shared_ptr<SignalBase>>& left, 
+            std::shared_ptr<std::shared_ptr<SignalBase>>& right    
+        ) : 
+            ComplexSignal(
+                left, 
+                right, 
+                [](double l, double r){ return l + r; }
+            )
         {}
         
         ~SumParam() override {}
@@ -236,14 +291,28 @@ namespace DSP::Signals
         CloneImplimentation(SumParam);
     };
 
-    class MulParam : public ComplParam
+    class MulParam : public ComplexSignal
     {
     public:
         MulParam(
-            std::unique_ptr<SignalBase>&& left, 
-            std::unique_ptr<SignalBase>&& right    
+            std::shared_ptr<std::shared_ptr<SignalBase>>&& left, 
+            std::shared_ptr<std::shared_ptr<SignalBase>>&& right    
         ) : 
-            ComplParam(std::move(left), std::move(right), [](double l, double r){ return l * r; })
+            ComplexSignal(
+                std::move(left), 
+                std::move(right), 
+                [](double l, double r){ return l * r; }
+            )
+        {}
+        MulParam(
+            std::shared_ptr<std::shared_ptr<SignalBase>>& left, 
+            std::shared_ptr<std::shared_ptr<SignalBase>>& right    
+        ) : 
+            ComplexSignal(
+                left, 
+                right, 
+                [](double l, double r){ return l * r; }
+            )
         {}
 
         ~MulParam() override {}
@@ -252,6 +321,7 @@ namespace DSP::Signals
     };
 
 
-}
+}// namespace Signals
+}// namespace DSP
 
 #endif

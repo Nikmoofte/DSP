@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(ImguiPath deps/imgui/)
 set(ImplotPath deps/implot/)
+set(ImnodesPath deps/imnodes/)
 set(ClassesPath src/classes/)
 
 set(ImguiSources 
@@ -23,16 +24,29 @@ set(ImplotSources
     ${ImplotPath}implot.cpp
 )
 
-set(classes
-    ${ClassesPath}Signals/SignalData/SignalData.cpp
+set(ImnodesSources 
+    ${ImnodesPath}imnodes.cpp
 )
 
-add_executable(lab WIN32 src/main.cpp ${classes} ${ImguiSources} ${ImplotSources})
+set(classes
+    ${ClassesPath}Signals/SignalData/SignalData.cpp
+    ${ClassesPath}WAVController/WAVController.cpp
+    ${ClassesPath}Bluprints/NodeBase.cpp
+    ${ClassesPath}Bluprints/Nodes.cpp
+)
+
+add_executable(lab WIN32 src/main.cpp 
+                         ${classes} 
+                         ${ImguiSources} 
+                         ${ImplotSources}
+                         ${ImnodesSources}
+)
 
 target_compile_options(lab PRIVATE)
-target_include_directories(lab PUBLIC deps/implot)
-target_include_directories(lab PUBLIC deps/imgui)
-target_include_directories(lab PUBLIC deps/imgui/backends)
+target_include_directories(lab PUBLIC ${ImguiPath})
+target_include_directories(lab PUBLIC ${ImguiPath}backends)
+target_include_directories(lab PUBLIC ${ImplotPath})
+target_include_directories(lab PUBLIC ${ImnodesPath})
 target_include_directories(lab PUBLIC ${ClassesPath})
 
 add_subdirectory(deps/glfw)
